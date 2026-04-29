@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NHL Road Fatigue Dashboard — 2025/26</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+/* Leaflet overrides for dark theme */
+.leaflet-custom-tip { background:transparent!important; border:none!important; box-shadow:none!important; }
+.leaflet-custom-tip .leaflet-tooltip { background:transparent; border:none; }
+.leaflet-container { font-family:'Inter',sans-serif; }
+.leaflet-control-attribution { background:rgba(13,13,15,0.7)!important; color:#555!important; font-size:9px!important; }
+.leaflet-control-attribution a { color:#666!important; }
+.leaflet-control-zoom a { background:#1a1c23!important; color:#DDDBF1!important; border-color:#2c2c34!important; }
+.leaflet-control-zoom a:hover { background:#222!important; }
+.leaflet-tooltip { background:#13151a!important; border:1px solid rgba(221,219,241,0.15)!important; border-radius:4px!important; color:#DDDBF1!important; font-family:'Inter',sans-serif!important; font-size:12px!important; box-shadow:0 4px 14px rgba(0,0,0,0.5)!important; padding:6px 10px!important; }
+:root {
+  --bg:      #0e0f12;
+  --bg1:     #13151a;
+  --bg2:     #1a1c23;
+  --bg3:     #222530;
+  --bg4:     #2c303d;
+  --slate:   #383F51;
+  --lavender:#DDDBF1;
+  --navy:    #3C4F76;
+  --sand:    #D1BEB0;
+  --stone:   #AB9F9D;
+  --white:   #DDDBF1;
+  --muted:   #4a5060;
+  --muted2:  #7a8090;
+  --border:  rgba(221,219,241,0.07);
+  --acc:     #DDDBF1;
+  --acc2:    rgba(221,219,241,0.06);
+  --acc3:    rgba(60,79,118,0.4);
+  --green:   #5ec98a;
+  --red:     #e07070;
+  --amber:   #c9a55e;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);line-height:1.6;font-size:14px;}
+code{font-family:'JetBrains Mono',monospace;background:var(--bg3);padding:1px 6px;border-radius:3px;font-size:12px;color:var(--sand);}
+
+/* SHELL */
+.shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{background:var(--bg1);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.sb-brand{padding:20px 16px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.sb-logo{font-size:12px;font-weight:600;color:var(--lavender);letter-spacing:0.05em;margin-bottom:2px;}
+.sb-season{font-size:10px;color:var(--muted2);letter-spacing:0.04em;}
+.sb-nav{padding:8px 8px 4px;flex-shrink:0;display:flex;flex-direction:column;gap:2px;}
+.sb-btn{width:100%;padding:8px 10px;background:none;border:1px solid transparent;border-radius:5px;color:var(--muted2);font-size:11px;font-family:'Inter',sans-serif;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.15s;text-align:left;}
+.sb-btn:hover{background:var(--bg2);color:var(--white);}
+.sb-btn.active{background:rgba(60,79,118,0.3);border-color:rgba(60,79,118,0.5);color:var(--lavender);}
+.sb-btn svg{width:13px;height:13px;flex-shrink:0;opacity:0.6;}
+.sb-div{height:1px;background:var(--border);margin:5px 8px;}
+.sb-search{padding:6px 8px;flex-shrink:0;}
+.sb-search input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:7px 10px;color:var(--white);font-size:11px;font-family:'Inter',sans-serif;outline:none;}
+.sb-search input:focus{border-color:rgba(221,219,241,0.3);}
+.sb-search input::placeholder{color:var(--muted);}
+.team-list{overflow-y:auto;flex:1;padding:4px 0 12px;}
+.team-list::-webkit-scrollbar{width:3px;}
+.team-list::-webkit-scrollbar-thumb{background:var(--slate);border-radius:2px;}
+.tb{width:100%;padding:7px 12px;background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:9px;transition:background 0.1s;text-align:left;}
+.tb:hover{background:var(--bg2);}
+.tb.active{background:rgba(60,79,118,0.25);border-left:2px solid var(--navy);}
+.tb-a{font-size:10px;font-weight:600;color:var(--muted2);width:28px;flex-shrink:0;font-family:'JetBrains Mono',monospace;}
+.tb.active .tb-a{color:var(--lavender);}
+.tb-n{font-size:11px;color:var(--muted2);line-height:1.2;}
+.tb.active .tb-n{color:var(--white);}
+
+/* MAIN */
+.main{overflow-y:auto;min-height:100vh;}
+
+/* STATE */
+.state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:48px;text-align:center;}
+.state h2{font-size:16px;font-weight:500;color:var(--muted2);margin-bottom:8px;}
+.state p{font-size:12px;color:var(--muted2);font-style:italic;}
+
+/* PAGE HEADER */
+.ph{padding:28px 36px 18px;border-bottom:1px solid var(--border);background:var(--bg1);}
+.ph-eye{font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--stone);margin-bottom:6px;}
+.ph-title{font-size:24px;font-weight:600;color:var(--lavender);line-height:1.1;margin-bottom:3px;}
+.ph-sub{font-size:12px;color:var(--muted2);}
+
+/* CONTROLS */
+.controls{padding:10px 36px;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;gap:14px;align-items:center;flex-wrap:wrap;}
+.controls label{font-size:10px;color:var(--muted2);}
+.controls select{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:5px 9px;color:var(--white);font-size:11px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;}
+.controls select:focus{border-color:var(--navy);}
+
+/* LEAGUE TABLE */
+.ltbl-wrap{overflow-x:auto;padding:24px 36px;}
+table.ltbl{width:100%;border-collapse:collapse;font-size:12px;min-width:780px;}
+table.ltbl thead tr{border-bottom:1px solid rgba(221,219,241,0.1);}
+table.ltbl th{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted2);padding:9px 12px;text-align:left;cursor:pointer;user-select:none;white-space:nowrap;background:var(--bg1);position:sticky;top:0;}
+table.ltbl th:hover{color:var(--lavender);}
+table.ltbl th.s{color:var(--lavender);}
+table.ltbl th.s::after{content:' ↓';}
+table.ltbl th.s.asc::after{content:' ↑';}
+table.ltbl td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.03);color:var(--stone);white-space:nowrap;vertical-align:middle;}
+table.ltbl tr:hover td{background:var(--bg2);color:var(--lavender);cursor:pointer;}
+.lrow-team{display:flex;align-items:center;gap:10px;}
+.lrow-logo{width:26px;height:26px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6));}
+.lrow-logo-fb{width:26px;height:26px;background:var(--bg3);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--muted2);font-family:'JetBrains Mono',monospace;flex-shrink:0;}
+.lrow-name{font-size:12px;font-weight:500;color:var(--white);}
+.lrow-abbr{font-size:10px;color:var(--muted2);font-family:'JetBrains Mono',monospace;margin-top:1px;}
+.mono{font-family:'JetBrains Mono',monospace;text-align:right;font-size:12px;}
+.dp{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;padding:2px 7px;border-radius:3px;display:inline-block;min-width:50px;text-align:center;}
+.dp.g{background:rgba(94,201,138,0.12);color:var(--green);}
+.dp.a{background:rgba(201,165,94,0.12);color:var(--amber);}
+.dp.r{background:rgba(224,112,112,0.12);color:var(--red);}
+.dp.n{background:var(--bg3);color:var(--muted2);}
+.mini-bar{display:flex;align-items:center;gap:7px;}
+.mb-track{width:60px;height:4px;background:var(--bg3);border-radius:2px;flex-shrink:0;overflow:hidden;}
+.mb-fill{height:100%;border-radius:2px;}
+.rank{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-align:right;}
+
+/* TEAM HEADER */
+.th{background:var(--bg1);border-bottom:1px solid var(--border);padding:22px 36px 16px;}
+.th-top{display:flex;align-items:center;gap:16px;margin-bottom:14px;}
+.th-logo{width:56px;height:56px;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.7));}
+.th-logo-fb{width:56px;height:56px;background:var(--bg3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--muted2);font-family:'JetBrains Mono',monospace;}
+.th-eye{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--stone);margin-bottom:3px;}
+.th-name{font-size:22px;font-weight:600;color:var(--lavender);line-height:1;}
+.th-season{font-size:11px;color:var(--muted2);margin-top:2px;}
+.th-pills{display:flex;gap:20px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--border);}
+.tp .tpl{font-size:9px;letter-spacing:0.09em;text-transform:uppercase;color:var(--muted2);margin-bottom:3px;}
+.tp .tpv{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:500;color:var(--white);}
+.tpv.g{color:var(--green);}
+.tpv.r{color:var(--red);}
+.tpv.acc{color:var(--sand);}
+
+/* TABS */
+.tabs{display:flex;background:var(--bg1);border-bottom:1px solid var(--border);padding:0 36px;}
+.tab-btn{font-size:11px;color:var(--muted2);background:none;border:none;border-bottom:2px solid transparent;padding:11px 12px;cursor:pointer;transition:all 0.15s;font-family:'Inter',sans-serif;}
+.tab-btn:hover{color:var(--white);}
+.tab-btn.active{color:var(--lavender);border-bottom-color:var(--navy);}
+
+/* CONTENT */
+.content{padding:22px 36px;}
+.sl{font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--stone);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.sl::before{content:'';display:block;width:12px;height:1px;background:var(--stone);}
+
+/* TOP CARDS */
+.top-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-radius:5px;overflow:hidden;margin-bottom:20px;}
+.top-card{background:var(--bg1);padding:14px 16px;cursor:pointer;transition:background 0.15s;}
+.top-card:hover{background:var(--bg2);}
+.tc-tag{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;}
+.tc-tag.g{color:var(--green);}
+.tc-tag.r{color:var(--red);}
+.tc-player{font-size:13px;font-weight:600;color:var(--white);margin-bottom:1px;}
+.tc-sub{font-size:10px;color:var(--muted2);margin-bottom:9px;}
+.tc-big{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:500;line-height:1;}
+.tc-big.g{color:var(--green);}
+.tc-big.r{color:var(--red);}
+.tc-tiny{font-size:10px;color:var(--muted2);margin-top:3px;}
+
+/* SPARK */
+.spark-list{display:flex;flex-direction:column;gap:4px;max-width:600px;}
+.spark-row{display:grid;grid-template-columns:144px 1fr 56px;gap:10px;align-items:center;cursor:pointer;padding:3px 0;}
+.spark-row:hover .sr-name{color:var(--lavender);}
+.sr-name{font-size:12px;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sr-bar{height:4px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.sr-fill{height:100%;border-radius:3px;}
+.sr-val{font-family:'JetBrains Mono',monospace;font-size:11px;text-align:right;font-weight:500;}
+
+/* PLAYER PANEL */
+.pp{background:var(--bg1);border:1px solid var(--border);border-radius:5px;padding:18px;margin-top:20px;}
+.pp-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}
+.pp-name{font-size:15px;font-weight:600;color:var(--lavender);}
+.pp-sub{font-size:11px;color:var(--muted2);margin-top:2px;}
+.pp-close{background:none;border:1px solid var(--border);color:var(--muted2);width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:13px;}
+.pp-close:hover{color:var(--white);}
+.pp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:7px;margin-bottom:14px;}
+.pp-stat{background:var(--bg2);border-radius:4px;padding:10px 12px;}
+.psl{font-size:9px;letter-spacing:0.09em;text-transform:uppercase;color:var(--muted2);margin-bottom:5px;}
+.psv{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:500;line-height:1;color:var(--white);}
+.psv.g{color:var(--green);}
+.psv.r{color:var(--red);}
+.psv.a{color:var(--amber);}
+.psv.acc{color:var(--sand);}
+.psv.m{color:var(--muted2);}
+.mh{height:120px;position:relative;}
+
+/* ROSTER TABLE */
+.tbl-wrap{overflow-x:auto;}
+table.dt{width:100%;border-collapse:collapse;font-size:12px;}
+table.dt th{font-size:9px;letter-spacing:0.09em;text-transform:uppercase;color:var(--muted2);padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none;background:var(--bg1);position:sticky;top:0;}
+table.dt th:hover{color:var(--lavender);}
+table.dt th.s{color:var(--lavender);}
+table.dt th.s::after{content:' ↓';}
+table.dt th.s.asc::after{content:' ↑';}
+table.dt td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.025);color:var(--lavender);white-space:nowrap;}
+table.dt tr:hover td{background:var(--bg2);color:var(--white);cursor:pointer;}
+.nc{color:var(--white);font-weight:500;}
+.pb{font-family:'JetBrains Mono',monospace;font-size:9px;padding:1px 4px;background:var(--bg3);color:var(--muted2);border-radius:3px;margin-left:4px;}
+
+/* CHART */
+.chart-card{background:var(--bg1);border:1px solid var(--border);border-radius:5px;padding:18px;margin-bottom:16px;}
+.chart-card h3{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--stone);margin-bottom:3px;}
+.cnote{font-size:11px;color:var(--muted2);font-style:italic;margin-bottom:14px;display:block;}
+.ch{position:relative;height:260px;}
+.ch.tall{height:360px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+/* TRAVEL */
+.travel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:20px;}
+.tbox{background:var(--bg1);border:1px solid var(--border);border-radius:5px;padding:13px;}
+.tbl-l{font-size:9px;letter-spacing:0.09em;text-transform:uppercase;color:var(--muted2);margin-bottom:4px;}
+.tbv{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:500;color:var(--white);}
+.tbu{font-size:10px;color:var(--muted2);margin-left:2px;}
+
+/* GLOSSARY */
+.gw{max-width:680px;}
+.gh{background:var(--bg1);border:1px solid var(--border);border-radius:5px;padding:22px;margin-bottom:16px;}
+.gh h2{font-size:17px;font-weight:600;color:var(--lavender);margin-bottom:8px;}
+.gh p{font-size:13px;color:var(--stone);line-height:1.75;margin-bottom:10px;}
+.gformula{background:var(--bg2);border-left:2px solid var(--navy);padding:13px 16px;border-radius:0 4px 4px 0;margin:14px 0;}
+.gf-lbl{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--sand);margin-bottom:7px;}
+.gf-eq{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--lavender);margin-bottom:5px;}
+.gf-note{font-size:11px;color:var(--muted2);}
+.gscale{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border-radius:5px;overflow:hidden;margin:16px 0;}
+.gs{background:var(--bg1);padding:13px 14px;}
+.gs-val{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:500;margin-bottom:4px;}
+.gs-lbl{font-size:11px;color:var(--muted2);line-height:1.5;}
+.gterms{display:flex;flex-direction:column;gap:1px;background:var(--border);border-radius:5px;overflow:hidden;}
+.gt{background:var(--bg1);padding:14px 16px;}
+.gt-name{font-size:12px;font-weight:600;color:var(--sand);margin-bottom:4px;}
+.gt-def{font-size:12px;color:var(--stone);line-height:1.65;}
+.glimits{margin-top:16px;padding:16px;background:var(--bg1);border:1px solid var(--border);border-radius:5px;}
+.glimits p{font-size:12px;color:var(--stone);line-height:1.7;margin-bottom:8px;}
+.glimits p:last-child{margin-bottom:0;}
+
+/* Leaflet tooltip override */
+.leaflet-custom-tip { background:transparent!important; border:none!important; box-shadow:none!important; padding:0!important; }
+.leaflet-custom-tip::before { display:none!important; }
+.leaflet-container { font-family:'Inter',sans-serif; }
+.leaflet-control-attribution { background:rgba(13,13,15,0.7)!important; color:#555!important; font-size:9px!important; }
+.leaflet-control-attribution a { color:#666!important; }
+@media(max-width:760px){
+  .shell{grid-template-columns:1fr;}
+  .sidebar{position:relative;height:auto;}
+  .top-cards,.two-col{grid-template-columns:1fr;}
+  .content,.th,.ph,.controls,.ltbl-wrap{padding-left:18px;padding-right:18px;}
+  .tabs{padding:0 18px;}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-brand">
+    <div class="sb-logo">NHL Fatigue Index</div>
+    <div class="sb-season">2025–26 Regular Season</div>
+  </div>
+  <div class="sb-nav">
+    <button class="sb-btn active" id="homeBtn" onclick="showHome()">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1L1 7h2v7h4v-4h2v4h4V7h2L8 1z"/></svg>
+      League Overview
+    </button>
+    <button class="sb-btn" id="glossBtn" onclick="showGloss()">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v1H2zm0 3h12v1H2zm0 3h8v1H2zm0 3h5v1H2z"/></svg>
+      Glossary
+    </button>
+  </div>
+  <div class="sb-div"></div>
+  <div class="sb-search"><input type="text" placeholder="Search teams…" oninput="filterTeams(this.value)"></div>
+  <div class="team-list" id="teamList"></div>
+</aside>
+
+<!-- MAIN -->
+<main class="main" id="main">
+  <div class="state"><h2>Loading…</h2></div>
+</main>
+</div>
+
+<script>
+let DATA={}, curTeam=null, curTab='overview', sortCol='avg_decay', sortAsc=true, lSortCol='avg_decay', lSortAsc=true, selPlayer=null;
+
+const LOGO = a => `https://assets.nhle.com/logos/nhl/svg/${a}_light.svg`;
+
+const TEAMS=[
+  ["ANA","Anaheim Ducks"],["BOS","Boston Bruins"],["BUF","Buffalo Sabres"],
+  ["CAR","Carolina Hurricanes"],["CBJ","Columbus Blue Jackets"],["CGY","Calgary Flames"],
+  ["CHI","Chicago Blackhawks"],["COL","Colorado Avalanche"],["DAL","Dallas Stars"],
+  ["DET","Detroit Red Wings"],["EDM","Edmonton Oilers"],["FLA","Florida Panthers"],
+  ["LAK","Los Angeles Kings"],["MIN","Minnesota Wild"],["MTL","Montreal Canadiens"],
+  ["NJD","New Jersey Devils"],["NSH","Nashville Predators"],["NYI","New York Islanders"],
+  ["NYR","New York Rangers"],["OTT","Ottawa Senators"],["PHI","Philadelphia Flyers"],
+  ["PIT","Pittsburgh Penguins"],["SEA","Seattle Kraken"],["SJS","San Jose Sharks"],
+  ["STL","St. Louis Blues"],["TBL","Tampa Bay Lightning"],["TOR","Toronto Maple Leafs"],
+  ["UTA","Utah Mammoth"],["VAN","Vancouver Canucks"],["VGK","Vegas Golden Knights"],
+  ["WSH","Washington Capitals"],["WPG","Winnipeg Jets"]
+];
+
+// ── INIT ──
+async function init(){
+  try{
+    const r=await fetch('nhl_fatigue_all_teams.json');
+    if(!r.ok)throw new Error();
+    DATA=await r.json();
+    buildSidebar();
+    showHome();
+  }catch{
+    document.getElementById('main').innerHTML=`<div class="state">
+      <h2>Data file not found</h2>
+      <p>Run <code>python pipeline.py</code> then serve from the project folder via <code>python -m http.server 8000</code></p>
+    </div>`;
+  }
+}
+
+// ── SIDEBAR ──
+function buildSidebar(){
+  document.getElementById('teamList').innerHTML=TEAMS.map(([a,n])=>
+    !DATA[a]?'':
+    `<button class="tb" data-abbr="${a}" data-name="${n.toLowerCase()}" onclick="selectTeam('${a}')">
+      <span class="tb-a">${a}</span><span class="tb-n">${n}</span>
+    </button>`
+  ).join('');
+}
+
+function filterTeams(q){
+  document.querySelectorAll('.tb').forEach(b=>{
+    b.style.display=(b.dataset.abbr.toLowerCase().includes(q.toLowerCase())||b.dataset.name.includes(q.toLowerCase()))?'':'none';
+  });
+}
+
+function setActive(abbr){
+  document.querySelectorAll('.tb').forEach(b=>b.classList.toggle('active',b.dataset.abbr===abbr));
+  document.getElementById('homeBtn').classList.toggle('active',!abbr);
+  document.getElementById('glossBtn').classList.remove('active');
+}
+
+// ── HOME ──
+function showHome(){
+  curTeam=null; selPlayer=null;
+  setActive(null);
+  document.getElementById('homeBtn').classList.add('active');
+  document.getElementById('main').innerHTML=`
+    <div class="ph">
+      <div class="ph-eye">League-wide · 2025–26 Regular Season</div>
+      <div class="ph-title">Road Fatigue Index</div>
+      <div class="ph-sub">All 32 teams ranked by how well their rosters hold up deep in road trips. Click any row to explore the full roster.</div>
+    </div>
+    <div class="controls">
+      <label>Sort by</label>
+      <select id="lSort" onchange="renderLeagueTable()">
+        <option value="avg_decay">Avg road decay</option>
+        <option value="travel">Total travel miles</option>
+        <option value="b2b">Back-to-backs</option>
+        <option value="players">Players tracked</option>
+        <option value="best_decay">Best player decay</option>
+        <option value="worst_decay">Worst player decay</option>
+      </select>
+      <label style="margin-left:8px;">Order</label>
+      <select id="lOrder" onchange="renderLeagueTable()">
+        <option value="asc">Best first (less fatigue)</option>
+        <option value="desc">Worst first (more fatigue)</option>
+      </select>
+    </div>
+    <div class="ltbl-wrap">
+      <table class="ltbl" id="leagueTable">
+        <thead>
+          <tr>
+            <th style="width:28px" class="${lSortCol==='rank'?'s':''}">Rank</th>
+            <th class="${lSortCol==='name'?'s':''}">Team</th>
+            <th class="${lSortCol==='players'?'s':''}">Players</th>
+            <th class="${lSortCol==='avg_decay'?'s':''}">Avg Decay</th>
+            <th>Decay bar</th>
+            <th class="${lSortCol==='best_decay'?'s':''}">Most durable</th>
+            <th class="${lSortCol==='worst_decay'?'s':''}">Most affected</th>
+            <th class="${lSortCol==='travel'?'s':''}">Travel miles</th>
+            <th class="${lSortCol==='b2b'?'s':''}">B2Bs</th>
+          </tr>
+        </thead>
+        <tbody id="leagueTbody"></tbody>
+      </table>
+    </div>
+  `;
+  renderLeagueTable();
+}
+
+function renderLeagueTable(){
+  const sortBy = document.getElementById('lSort').value;
+  const order  = document.getElementById('lOrder').value;
+
+  const rows = TEAMS.filter(([a])=>DATA[a]).map(([abbr, name])=>{
+    const t = DATA[abbr];
+    const decays = t.players.filter(p=>p.decay_index!==null).map(p=>p.decay_index);
+    const avg_decay = decays.length ? Math.round(decays.reduce((s,v)=>s+v,0)/decays.length*100)/100 : null;
+    const best  = decays.length ? [...t.players].filter(p=>p.decay_index!==null).sort((a,b)=>b.decay_index-a.decay_index)[0] : null;
+    const worst = decays.length ? [...t.players].filter(p=>p.decay_index!==null).sort((a,b)=>a.decay_index-b.decay_index)[0] : null;
+    return {
+      abbr, name, t,
+      avg_decay,
+      players:   t.players.length,
+      travel:    t.travel.total_travel_miles||0,
+      b2b:       t.travel.back_to_backs||0,
+      best_decay: best?best.decay_index:null,
+      worst_decay: worst?worst.decay_index:null,
+      best, worst
+    };
+  });
+
+  const sorted = [...rows].sort((a,b)=>{
+    let av = a[sortBy]??0, bv = b[sortBy]??0;
+    if(av===null) av = order==='asc' ? Infinity : -Infinity;
+    if(bv===null) bv = order==='asc' ? Infinity : -Infinity;
+    return order==='asc' ? av-bv : bv-av;
+  });
+
+  const maxMiles = Math.max(...sorted.map(r=>r.travel));
+
+  document.getElementById('leagueTbody').innerHTML = sorted.map((r,i)=>{
+    const dc = r.avg_decay===null?'n':r.avg_decay>=0?'g':r.avg_decay>=-0.2?'a':'r';
+    const pct = Math.min(Math.abs(r.avg_decay||0)/0.6, 1);
+    const barColor = r.avg_decay===null?'#2c303d':r.avg_decay>=0?'#5ec98a':r.avg_decay>=-0.2?'#c9a55e':'#e07070';
+    return `
+    <tr onclick="selectTeam('${r.abbr}')">
+      <td class="rank">${i+1}</td>
+      <td>
+        <div class="lrow-team">
+          <img class="lrow-logo" src="${LOGO(r.abbr)}" alt="${r.abbr}" onerror="this.outerHTML='<div class=lrow-logo-fb>${r.abbr}</div>'">
+          <div>
+            <div class="lrow-name">${r.name}</div>
+            <div class="lrow-abbr">${r.abbr}</div>
+          </div>
+        </div>
+      </td>
+      <td class="mono">${r.players}</td>
+      <td><span class="dp ${dc}">${r.avg_decay!==null?(r.avg_decay>0?'+':'')+r.avg_decay.toFixed(2):'—'}</span></td>
+      <td>
+        <div class="mini-bar">
+          <div class="mb-track"><div class="mb-fill" style="width:${pct*100}%;background:${barColor};"></div></div>
+        </div>
+      </td>
+      <td style="color:var(--green);font-size:12px;">${r.best?r.best.name:'—'}</td>
+      <td style="color:var(--red);font-size:12px;">${r.worst?r.worst.name:'—'}</td>
+      <td class="mono">${r.travel?Math.round(r.travel).toLocaleString():'—'}</td>
+      <td class="mono">${r.b2b||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── GLOSSARY ──
+function showGloss(){
+  curTeam=null; selPlayer=null;
+  setActive(null);
+  document.getElementById('homeBtn').classList.remove('active');
+  document.getElementById('glossBtn').classList.add('active');
+  document.getElementById('main').innerHTML=`
+    <div class="ph">
+      <div class="ph-eye">How it works</div>
+      <div class="ph-title">Glossary & Methodology</div>
+      <div class="ph-sub">A plain-language guide to every metric in this dashboard.</div>
+    </div>
+    <div class="content">
+      <div class="gw">
+        <div class="gh">
+          <h2>The Road Trip Decay Index</h2>
+          <p>Standard hockey stats tell you how a player performed across a whole season. The Road Trip Decay Index asks a more specific question: <strong>does a player hold up as a road trip gets longer?</strong></p>
+          <p>The NHL schedule forces every team onto extended road trips — sometimes 4, 5, or 6 games across different cities in under two weeks. Hotel beds, travel days, different time zones, and consecutive nights of high-intensity play all accumulate. Some players barely notice. Others fade measurably by game three.</p>
+          <div class="gformula">
+            <div class="gf-lbl">Formula</div>
+            <div class="gf-eq">Decay Index = pts/gm (Road Game 3+) − pts/gm (Road Game 1)</div>
+            <div class="gf-note">Minimum 3 qualifying deep road games required. Zero means no drop-off. Negative means fading. Positive means actually getting better deep in trips.</div>
+          </div>
+          <p>We use points per game as the primary signal because the NHL's EDGE tracking data — which would give us speed and acceleration per shift — remains largely inaccessible via the public API. Points are an imperfect proxy, but they're available at scale across all 32 teams.</p>
+        </div>
+
+        <div class="sl" style="margin-bottom:12px;">How to read the scale</div>
+        <div class="gscale">
+          <div class="gs">
+            <div class="gs-val" style="color:var(--green)">+0.10 or better</div>
+            <div class="gs-lbl">Road-trip proof. Player gets better as trips get longer. Rare and valuable.</div>
+          </div>
+          <div class="gs">
+            <div class="gs-val" style="color:var(--amber)">0.00 to −0.20</div>
+            <div class="gs-lbl">Normal range. Some drop-off, manageable. Most NHL regulars land here.</div>
+          </div>
+          <div class="gs">
+            <div class="gs-val" style="color:var(--red)">−0.20 or worse</div>
+            <div class="gs-lbl">Meaningful fatigue effect. Worth monitoring, especially in long playoff series.</div>
+          </div>
+        </div>
+
+        <div class="sl" style="margin:20px 0 10px;">All metrics defined</div>
+        <div class="gterms">
+          <div class="gt"><div class="gt-name">Road Game 1</div><div class="gt-def">Points per game in the first game of any road trip. A player's "fresh road" baseline — just left home, energy is high, legs are fresh.</div></div>
+          <div class="gt"><div class="gt-name">Road Game 3+</div><div class="gt-def">Points per game in the third game of a road trip and beyond. By this point, cumulative travel, hotel stays, and consecutive nights of play start showing up in the numbers.</div></div>
+          <div class="gt"><div class="gt-name">Decay Index</div><div class="gt-def">Road Game 3+ minus Road Game 1. The core metric. Negative = fading. Zero = holds steady. Positive = gets better on the road over time.</div></div>
+          <div class="gt"><div class="gt-name">Back-to-Back (B2B)</div><div class="gt-def">Games played with only one day of rest between them. We compare points on B2Bs vs. rested games (2+ days rest) to measure the short-rest effect separately from trip length.</div></div>
+          <div class="gt"><div class="gt-name">B2B Δ (Delta)</div><div class="gt-def">Points per game on back-to-backs minus points when rested. Negative means the player produces less on short rest.</div></div>
+          <div class="gt"><div class="gt-name">TOI/G</div><div class="gt-def">Average time on ice per game in minutes. Players logging 22+ minutes per night accumulate fatigue differently than depth forwards playing 12.</div></div>
+          <div class="gt"><div class="gt-name">Monthly Arc</div><div class="gt-def">Points per game by calendar month — shows whether a player starts strong and fades, improves over the season, or stays consistent throughout.</div></div>
+          <div class="gt"><div class="gt-name">Travel Miles</div><div class="gt-def">Total estimated miles flown across the season using great-circle distance between arena coordinates. Geographically isolated markets like Utah and Seattle tend to log significantly more miles.</div></div>
+          <div class="gt"><div class="gt-name">Avg Road Decay (team level)</div><div class="gt-def">Mean Decay Index across all tracked skaters on a roster. A single-number summary of how a team collectively holds up on extended road trips.</div></div>
+        </div>
+
+        <div class="glimits">
+          <div class="sl" style="margin-bottom:10px;">Limitations & caveats</div>
+          <p>Points are a noisy single-game metric — one power play goal in game 1 and a shutout in game 4 can swing the decay index on small samples. We require a minimum of 3 qualifying deep road games, but treat any single player's number with appropriate skepticism.</p>
+          <p>The decay index doesn't account for opponent quality, injuries mid-trip, or line combination changes. A player whose linemates got hurt game 2 of a trip will look worse than they should.</p>
+          <p>NHL EDGE tracking data — speed, acceleration, distance skated — would dramatically strengthen these signals. That data remains inaccessible via the public API. When it becomes available, the framework here is ready for it.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── SELECT TEAM ──
+function selectTeam(abbr){
+  curTeam=abbr; selPlayer=null; curTab='overview';
+  activeTrip=null;
+  // Reset Leaflet so it reinitialises for the new team
+  if(leafletMap){leafletMap.remove();leafletMap=null;leafletLayers=[];}
+  setActive(abbr);
+  renderTeam();
+}
+
+function renderTeam(){
+  const t=DATA[curTeam];
+  if(!t)return;
+  const decays=t.players.filter(p=>p.decay_index!==null).map(p=>p.decay_index);
+  const avgDecay=decays.length?Math.round(decays.reduce((s,v)=>s+v,0)/decays.length*100)/100:null;
+  const best=[...t.players].filter(p=>p.decay_index!==null).sort((a,b)=>b.decay_index-a.decay_index)[0];
+  const worst=[...t.players].filter(p=>p.decay_index!==null).sort((a,b)=>a.decay_index-b.decay_index)[0];
+  const dc=avgDecay===null?'':avgDecay>=0?'g':avgDecay<-0.2?'r':'';
+
+  document.getElementById('main').innerHTML=`
+    <div class="th">
+      <div class="th-top">
+        <img class="th-logo" src="${LOGO(curTeam)}" alt="${curTeam}" onerror="this.outerHTML='<div class=th-logo-fb>${curTeam}</div>'">
+        <div>
+          <div class="th-eye">Road Fatigue Index · 2025–26</div>
+          <div class="th-name">${t.name}</div>
+          <div class="th-season">${t.games_played} regular season games · ${t.players.length} players tracked</div>
+        </div>
+      </div>
+      <div class="th-pills">
+        <div class="tp"><div class="tpl">Avg road decay</div><div class="tpv ${dc}">${avgDecay!==null?(avgDecay>0?'+':'')+avgDecay.toFixed(2):'—'}</div></div>
+        <div class="tp"><div class="tpl">Travel miles</div><div class="tpv acc">${t.travel.total_travel_miles?Math.round(t.travel.total_travel_miles).toLocaleString():'—'}</div></div>
+        <div class="tp"><div class="tpl">Back-to-backs</div><div class="tpv">${t.travel.back_to_backs??'—'}</div></div>
+        <div class="tp"><div class="tpl">Most durable</div><div class="tpv g" style="font-size:13px">${best?best.name:'—'}</div></div>
+        <div class="tp"><div class="tpl">Most affected</div><div class="tpv r" style="font-size:13px">${worst?worst.name:'—'}</div></div>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('overview',this)">Overview</button>
+      <button class="tab-btn" onclick="switchTab('roster',this)">Roster Table</button>
+      <button class="tab-btn" onclick="switchTab('charts',this)">Charts</button>
+      <button class="tab-btn" onclick="switchTab('travel',this)">Travel Load</button>
+    </div>
+    <div class="content" id="tabContent"></div>
+  `;
+  renderTab('overview');
+}
+
+function switchTab(tab,btn){
+  curTab=tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTab(tab);
+}
+
+function renderTab(tab){
+  const el=document.getElementById('tabContent');
+  if(!el)return;
+  if(tab!=='travel') destroyLeafletMap();
+  if(tab==='overview') el.innerHTML=buildOverview();
+  if(tab==='roster')   el.innerHTML=buildRoster();
+  if(tab==='charts')   {el.innerHTML=buildCharts();drawCharts();}
+  if(tab==='travel')   {el.innerHTML=buildTravel(); setTimeout(drawLeafletMap,80);}
+  if(selPlayer&&document.getElementById('monthlyChart')) drawMonthly();
+}
+
+// OVERVIEW
+function buildOverview(){
+  const t=DATA[curTeam];
+  const wd=t.players.filter(p=>p.decay_index!==null).sort((a,b)=>b.decay_index-a.decay_index);
+  return `
+    <div class="sl" style="margin-bottom:10px;">Most durable on the road</div>
+    <div class="top-cards" style="margin-bottom:20px;">
+      ${wd.slice(0,3).map(p=>`<div class="top-card" onclick="showPlayer(${p.player_id})">
+        <div class="tc-tag g">Road-trip proof</div>
+        <div class="tc-player">${p.name}</div>
+        <div class="tc-sub">${p.position} · ${p.games}g</div>
+        <div class="tc-big g">${p.decay_index>=0?'+':''}${p.decay_index.toFixed(2)}</div>
+        <div class="tc-tiny">Decay index</div>
+      </div>`).join('')}
+    </div>
+    <div class="sl" style="margin-bottom:10px;">Most affected by road fatigue</div>
+    <div class="top-cards">
+      ${wd.slice(-3).reverse().map(p=>`<div class="top-card" onclick="showPlayer(${p.player_id})">
+        <div class="tc-tag r">Fades on long trips</div>
+        <div class="tc-player">${p.name}</div>
+        <div class="tc-sub">${p.position} · ${p.games}g</div>
+        <div class="tc-big r">${p.decay_index.toFixed(2)}</div>
+        <div class="tc-tiny">Decay index</div>
+      </div>`).join('')}
+    </div>
+    <div class="sl" style="margin:22px 0 10px;">All players snapshot</div>
+    <div class="spark-list">
+      ${wd.map(p=>{
+        const pct=Math.min(Math.abs(p.decay_index)/1.0,1);
+        const col=p.decay_index>=0?'var(--green)':p.decay_index>=-0.2?'var(--amber)':'var(--red)';
+        return `<div class="spark-row" onclick="showPlayer(${p.player_id})">
+          <div class="sr-name">${p.name}</div>
+          <div class="sr-bar"><div class="sr-fill" style="width:${pct*100}%;background:${col}"></div></div>
+          <div class="sr-val" style="color:${col}">${p.decay_index>=0?'+':''}${p.decay_index.toFixed(2)}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    ${selPlayer?buildPlayerPanel():''}
+  `;
+}
+
+function showPlayer(pid){
+  selPlayer=DATA[curTeam].players.find(p=>p.player_id==pid);
+  if(curTab==='overview')renderTab('overview');
+}
+
+function buildPlayerPanel(){
+  const p=selPlayer;
+  if(!p)return'';
+  const dc=p.decay_index===null?'m':p.decay_index>=0?'g':p.decay_index<-0.3?'r':'a';
+  const monthly=p.monthly_pts||{};
+  const months=Object.keys(monthly).sort();
+  return `
+    <div class="pp">
+      <div class="pp-hdr">
+        <div><div class="pp-name">${p.name}</div><div class="pp-sub">${p.position} · ${p.games} games · ${p.avg_toi_min?p.avg_toi_min.toFixed(1)+' TOI/G':''}</div></div>
+        <button class="pp-close" onclick="selPlayer=null;renderTab('overview')">×</button>
+      </div>
+      <div class="pp-grid">
+        <div class="pp-stat"><div class="psl">Pts/Game</div><div class="psv acc">${f(p.pts_per_game)}</div></div>
+        <div class="pp-stat"><div class="psl">Home</div><div class="psv">${f(p.home_pts)}</div></div>
+        <div class="pp-stat"><div class="psl">Road G1</div><div class="psv">${f(p.road_fresh_pts)}</div></div>
+        <div class="pp-stat"><div class="psl">Road G3+</div><div class="psv ${p.road_deep_pts!==null&&p.road_fresh_pts!==null?(p.road_deep_pts>=p.road_fresh_pts?'g':p.road_deep_pts<p.road_fresh_pts-0.2?'r':'a'):''}">${f(p.road_deep_pts)}</div></div>
+        <div class="pp-stat"><div class="psl">Decay Index</div><div class="psv ${dc}">${p.decay_index!==null?(p.decay_index>0?'+':'')+p.decay_index.toFixed(2):'N/A'}</div></div>
+        <div class="pp-stat"><div class="psl">B2B Pts/G</div><div class="psv ${p.b2b_drop<-0.1?'r':p.b2b_drop>0.05?'g':''}">${f(p.b2b_pts)}</div></div>
+        <div class="pp-stat"><div class="psl">Rested Pts/G</div><div class="psv">${f(p.rested_pts)}</div></div>
+        <div class="pp-stat"><div class="psl">B2B Drop</div><div class="psv ${p.b2b_drop<-0.1?'r':p.b2b_drop>0.05?'g':''}">${p.b2b_drop!==null?(p.b2b_drop>0?'+':'')+p.b2b_drop.toFixed(2):'—'}</div></div>
+      </div>
+      ${months.length>2?`<div class="sl" style="margin-bottom:10px;">Monthly scoring arc</div><div class="mh"><canvas id="monthlyChart"></canvas></div>`:''}
+    </div>
+  `;
+}
+
+function drawMonthly(){
+  const p=selPlayer;
+  if(!p)return;
+  const monthly=p.monthly_pts||{};
+  const months=Object.keys(monthly).sort();
+  if(!months.length)return;
+  new Chart(document.getElementById('monthlyChart'),{
+    type:'line',
+    data:{labels:months.map(m=>m.slice(2)),datasets:[{
+      data:months.map(m=>monthly[m]),
+      borderColor:'#DDDBF1',backgroundColor:'rgba(221,219,241,0.06)',
+      borderWidth:1.5,pointRadius:3,pointBackgroundColor:'#DDDBF1',fill:true,tension:0.3
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#13151a',borderColor:'rgba(221,219,241,0.15)',borderWidth:1,titleColor:'#DDDBF1',bodyColor:'#AB9F9D',callbacks:{label:c=>` ${c.raw.toFixed(2)} pts/gm`}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#555',font:{size:11}}},
+              y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#555',font:{size:11},callback:v=>v.toFixed(2)}}}}
+  });
+}
+
+// ROSTER TABLE
+function buildRoster(){
+  const t=DATA[curTeam];
+  const cols=[
+    {k:'name',l:'Player'},{k:'games',l:'GP'},{k:'pts_per_game',l:'Pts/G'},
+    {k:'home_pts',l:'Home'},{k:'road_fresh_pts',l:'Road G1'},{k:'road_deep_pts',l:'Road G3+'},
+    {k:'decay_index',l:'Decay'},{k:'b2b_pts',l:'B2B'},{k:'rested_pts',l:'Rested'},
+    {k:'b2b_drop',l:'B2B Δ'},{k:'avg_toi_min',l:'TOI/G'}
+  ];
+  const players=[...t.players].sort((a,b)=>{
+    let av=a[sortCol]??(sortAsc?Infinity:-Infinity);
+    let bv=b[sortCol]??(sortAsc?Infinity:-Infinity);
+    return sortAsc?av-bv:bv-av;
+  });
+  return `<div class="tbl-wrap"><table class="dt">
+    <thead><tr>${cols.map(c=>`<th class="${sortCol===c.k?'s'+(sortAsc?' asc':''):''}" onclick="sortR('${c.k}')">${c.l}</th>`).join('')}</tr></thead>
+    <tbody>${players.map(p=>`<tr onclick="showPlayer(${p.player_id});switchTab('overview',document.querySelector('.tab-btn'))" style="cursor:pointer">
+      <td class="nc">${p.name}<span class="pb">${p.position}</span></td>
+      <td style="font-family:'JetBrains Mono',monospace;text-align:right">${p.games}</td>
+      <td style="font-family:'JetBrains Mono',monospace;text-align:right">${f(p.pts_per_game)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;text-align:right">${f(p.home_pts)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;text-align:right">${f(p.road_fresh_pts)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;text-align:right">${f(p.road_deep_pts)}</td>
+      <td><span class="dp ${p.decay_index===null?'n':p.decay_index>=0?'g':p.decay_index>=-0.2?'a':'r'}">${p.decay_index!==null?(p.decay_index>0?'+':'')+p.decay_index.toFixed(2):'N/A'}</span></td>
+      <td style="font-family:'JetBrains Mono',monospace;text-align:right">${f(p.b2b_pts)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;text-align:right">${f(p.rested_pts)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;text-align:right;color:${p.b2b_drop<-0.1?'var(--red)':p.b2b_drop>0.1?'var(--green)':'inherit'}">${p.b2b_drop!==null?(p.b2b_drop>0?'+':'')+p.b2b_drop.toFixed(2):'—'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;text-align:right">${p.avg_toi_min?p.avg_toi_min.toFixed(1):'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function sortR(col){
+  if(sortCol===col)sortAsc=!sortAsc;else{sortCol=col;sortAsc=true;}
+  renderTab('roster');
+}
+
+// CHARTS
+function buildCharts(){
+  return `
+    <div class="chart-card">
+      <h3>Road trip decay — all players</h3>
+      <span class="cnote">Green holds up, amber minor drop, red meaningful fatigue. Hover for detail.</span>
+      <div class="ch tall"><canvas id="decayChart"></canvas></div>
+    </div>
+    <div class="two-col">
+      <div class="chart-card">
+        <h3>Back-to-back vs. rested</h3>
+        <span class="cnote">Points per game on short rest vs. 2+ days rest.</span>
+        <div class="ch"><canvas id="b2bChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Home vs. road scoring</h3>
+        <span class="cnote">Top 10 by TOI — home, road game 1, road game 3+.</span>
+        <div class="ch"><canvas id="hrChart"></canvas></div>
+      </div>
+    </div>`;
+}
+
+function drawCharts(){
+  const t=DATA[curTeam];
+  const gc='rgba(255,255,255,0.06)';
+  const tt={backgroundColor:'#13151a',borderColor:'rgba(221,219,241,0.2)',borderWidth:1,titleColor:'#DDDBF1',bodyColor:'#DDDBF1',padding:10};
+  const base={responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:tt},
+    scales:{x:{grid:{color:gc},ticks:{color:'#aaa',font:{size:11}}},
+            y:{grid:{color:gc},ticks:{color:'#aaa',font:{size:11}}}}};
+
+  const wd=t.players.filter(p=>p.decay_index!==null).sort((a,b)=>b.decay_index-a.decay_index);
+  new Chart(document.getElementById('decayChart'),{type:'bar',
+    data:{labels:wd.map(p=>p.last_name),datasets:[{
+      data:wd.map(p=>p.decay_index),
+      backgroundColor:wd.map(p=>p.decay_index>=0?'rgba(94,201,138,0.75)':p.decay_index>=-0.2?'rgba(201,165,94,0.75)':'rgba(224,112,112,0.75)'),
+      borderColor:wd.map(p=>p.decay_index>=0?'#5ec98a':p.decay_index>=-0.2?'#c9a55e':'#e07070'),
+      borderWidth:1,borderRadius:2,borderSkipped:false
+    }]},
+    options:{...base,indexAxis:'y',
+      plugins:{...base.plugins,tooltip:{...tt,callbacks:{label:c=>{const p=wd[c.dataIndex];return[` Decay: ${c.raw>0?'+':''}${c.raw.toFixed(2)}`,` G1: ${f(p.road_fresh_pts)} → G3+: ${f(p.road_deep_pts)}`];}}}},
+      scales:{x:{...base.scales.x,ticks:{color:'#aaa',font:{size:11},callback:v=>(v>0?'+':'')+v.toFixed(2)}},
+              y:{...base.scales.y,ticks:{color:'#ddd',font:{size:12}}}}}
+  });
+
+  const wb=t.players.filter(p=>p.has_b2b&&p.b2b_pts!==null).sort((a,b)=>(a.b2b_drop||0)-(b.b2b_drop||0)).slice(0,12);
+  new Chart(document.getElementById('b2bChart'),{type:'bar',
+    data:{labels:wb.map(p=>p.last_name),datasets:[
+      {label:'Rested',data:wb.map(p=>p.rested_pts),backgroundColor:'rgba(60,79,118,0.85)',borderRadius:2},
+      {label:'B2B',   data:wb.map(p=>p.b2b_pts),   backgroundColor:'rgba(224,112,112,0.8)',borderRadius:2}
+    ]},
+    options:{...base,plugins:{...base.plugins,legend:{display:true,labels:{color:'#ccc',font:{size:11},boxWidth:10}}},
+      scales:{...base.scales,y:{...base.scales.y,ticks:{color:'#aaa',font:{size:11},callback:v=>v.toFixed(2)}}}}
+  });
+
+  const top=[...t.players].filter(p=>p.home_pts!==null).sort((a,b)=>(b.avg_toi_min||0)-(a.avg_toi_min||0)).slice(0,10);
+  new Chart(document.getElementById('hrChart'),{type:'bar',
+    data:{labels:top.map(p=>p.last_name),datasets:[
+      {label:'Home',    data:top.map(p=>p.home_pts),       backgroundColor:'rgba(221,219,241,0.35)',borderColor:'rgba(221,219,241,0.6)',borderWidth:1,borderRadius:2},
+      {label:'Road G1', data:top.map(p=>p.road_fresh_pts), backgroundColor:'rgba(60,79,118,0.9)',borderRadius:2},
+      {label:'Road G3+',data:top.map(p=>p.road_deep_pts),  backgroundColor:'rgba(224,112,112,0.75)',borderRadius:2}
+    ]},
+    options:{...base,plugins:{...base.plugins,legend:{display:true,labels:{color:'#ccc',font:{size:11},boxWidth:10}}},
+      scales:{...base.scales,y:{...base.scales.y,ticks:{color:'#aaa',font:{size:11},callback:v=>v.toFixed(2)}}}}
+  });
+}
+
+// TRAVEL
+// ── ARENA COORDINATES (Albers projection, y-flipped so north=up) ──────────
+const ARENA_XY={
+  ANA:{x:78.2,y:326.3,city:"Anaheim",lat:33.8078,lon:-117.8767},
+  BOS:{x:623.8,y:190.5,city:"Boston",lat:42.3662,lon:-71.0621},
+  BUF:{x:537.6,y:202.0,city:"Buffalo",lat:42.8749,lon:-78.8763},
+  CAR:{x:558.8,y:308.1,city:"Raleigh",lat:35.8031,lon:-78.7228},
+  CBJ:{x:498.6,y:253.2,city:"Columbus",lat:39.969,lon:-83.0061},
+  CGY:{x:174.4,y:79.3,city:"Calgary",lat:51.0374,lon:-114.0519},
+  CHI:{x:442.6,y:230.1,city:"Chicago",lat:41.8807,lon:-87.6742},
+  COL:{x:245.7,y:261.9,city:"Denver",lat:39.7487,lon:-104.9897},
+  DAL:{x:339.2,y:373.1,city:"Dallas",lat:32.7904,lon:-96.8103},
+  DET:{x:493.1,y:217.3,city:"Detroit",lat:42.3411,lon:-83.0554},
+  EDM:{x:186.5,y:44.0,city:"Edmonton",lat:53.5461,lon:-113.4938},
+  FLA:{x:563.6,y:456.0,city:"Sunrise",lat:26.1584,lon:-80.3256},
+  LAK:{x:74.3,y:321.7,city:"Los Angeles",lat:34.043,lon:-118.2673},
+  MIN:{x:380.5,y:187.0,city:"St. Paul",lat:44.9447,lon:-93.101},
+  MTL:{x:585.6,y:151.1,city:"Montreal",lat:45.4961,lon:-73.5693},
+  NJD:{x:595.9,y:223.3,city:"Newark",lat:40.7334,lon:-74.1712},
+  NSH:{x:461.1,y:316.3,city:"Nashville",lat:36.1592,lon:-86.7785},
+  NYI:{x:602.4,y:221.9,city:"Elmont",lat:40.7226,lon:-73.5907},
+  NYR:{x:597.8,y:222.5,city:"New York",lat:40.7505,lon:-73.9934},
+  OTT:{x:561.8,y:159.6,city:"Ottawa",lat:45.2967,lon:-75.927},
+  PHI:{x:587.6,y:238.2,city:"Philadelphia",lat:39.9012,lon:-75.172},
+  PIT:{x:531.7,y:240.8,city:"Pittsburgh",lat:40.4395,lon:-79.9892},
+  SEA:{x:81.7,y:109.6,city:"Seattle",lat:47.622,lon:-122.3541},
+  SJS:{x:44.0,y:261.9,city:"San Jose",lat:37.3329,lon:-121.901},
+  STL:{x:417.4,y:281.9,city:"St. Louis",lat:38.6267,lon:-90.2025},
+  TBL:{x:531.0,y:433.9,city:"Tampa",lat:27.9428,lon:-82.4519},
+  TOR:{x:530.1,y:191.4,city:"Toronto",lat:43.6435,lon:-79.3791},
+  UTA:{x:169.2,y:236.1,city:"Salt Lake City",lat:40.7683,lon:-111.9011},
+  VAN:{x:81.2,y:83.6,city:"Vancouver",lat:49.2778,lon:-123.1088},
+  VGK:{x:118.2,y:299.2,city:"Las Vegas",lat:36.1029,lon:-115.1784},
+  WSH:{x:569.8,y:257.7,city:"Washington",lat:38.8981,lon:-77.0209},
+  WPG:{x:338.1,y:112.9,city:"Winnipeg",lat:49.8928,lon:-97.1438}
+};
+
+// State & province border paths (Albers projection, y-flipped, north=up)
+const STATE_PATHS=[
+  {id:"WA",canada:false,d:"M136.3,117.7 L134.7,125.0 L130.8,147.3 L58.3,128.3 L62.0,91.6 L139.6,103.0 L136.3,117.7 Z"},
+  {id:"OR",canada:false,d:"M130.8,147.3 L116.4,206.5 L35.3,184.9 L58.2,125.1 L60.4,128.9 L130.8,147.3 Z"},
+  {id:"CA",canada:false,d:"M83.8,198.6 L72.3,243.0 L121.8,317.1 L113.2,354.3 L83.3,348.0 L47.5,309.3 L39.1,253.0 L29.2,208.6 L35.3,184.9 L83.8,198.6 Z"},
+  {id:"NV",canada:false,d:"M83.8,198.6 L149.2,213.3 L134.8,288.5 L121.8,317.1 L72.3,243.0 L83.8,198.6 Z"},
+  {id:"ID",canada:false,d:"M149.5,105.2 L183.0,180.6 L176.8,218.2 L116.4,206.5 L130.8,147.3 L134.0,132.6 L149.5,105.2 Z"},
+  {id:"MT",canada:false,d:"M268.9,122.9 L149.5,105.2 L183.0,180.6 L189.5,174.0 L263.2,190.6 L268.9,122.9 Z"},
+  {id:"WY",canada:false,d:"M189.5,174.0 L179.9,234.2 L258.7,243.8 L263.9,183.0 L189.5,174.0 Z"},
+  {id:"UT",canada:false,d:"M149.2,213.3 L176.8,218.2 L164.4,293.7 L194.0,298.2 L202.4,237.5 L146.4,228.3 L149.2,213.3 Z"},
+  {id:"CO",canada:false,d:"M202.4,237.5 L194.0,298.2 L277.5,306.6 L281.4,245.5 L202.4,237.5 Z"},
+  {id:"AZ",canada:false,d:"M134.8,288.5 L194.0,298.2 L182.1,384.4 L156.6,380.7 L113.2,354.3 L121.8,317.1 L134.8,288.5 Z"},
+  {id:"NM",canada:false,d:"M194.0,298.2 L265.6,305.7 L259.9,381.9 L215.0,380.9 L192.4,385.8 L182.1,384.4 L194.0,298.2 Z"},
+  {id:"ND",canada:false,d:"M337.3,126.2 L268.9,122.9 L265.1,167.9 L343.1,171.5 L337.3,126.2 Z"},
+  {id:"SD",canada:false,d:"M265.1,167.9 L261.3,213.4 L343.9,217.1 L344.1,179.0 L343.1,171.5 L265.1,167.9 Z"},
+  {id:"NE",canada:false,d:"M261.3,213.4 L258.7,243.8 L280.4,260.7 L357.5,262.9 L345.0,224.7 L343.9,217.1 L261.3,213.4 Z"},
+  {id:"KS",canada:false,d:"M280.4,260.7 L277.5,306.6 L366.2,308.7 L365.5,262.8 L280.4,260.7 Z"},
+  {id:"OK",canada:false,d:"M265.6,305.7 L366.2,308.7 L369.5,360.7 L299.3,359.8 L301.1,315.5 L265.0,313.4 L265.6,305.7 Z"},
+  {id:"TX",canada:false,d:"M265.0,313.4 L301.1,315.5 L299.3,359.8 L244.2,415.8 L330.1,477.4 L335.7,476.0 L330.6,448.8 L378.3,416.8 L369.5,360.7 L366.2,308.7 L277.5,306.6 L259.9,381.9 L215.0,380.9 L192.4,385.8 L265.0,313.4 Z"},
+  {id:"MN",canada:false,d:"M337.3,126.2 L414.8,124.1 L411.2,146.9 L390.1,160.1 L401.9,208.1 L344.0,209.4 L344.1,179.0 L343.1,171.5 L337.3,126.2 Z"},
+  {id:"IA",canada:false,d:"M344.0,209.4 L401.9,208.1 L402.1,255.5 L351.7,255.3 L344.0,209.4 Z"},
+  {id:"MO",canada:false,d:"M402.1,255.5 L351.7,256.8 L366.3,316.4 L427.8,313.8 L444.0,289.5 L446.3,249.4 L402.1,255.5 Z"},
+  {id:"WI",canada:false,d:"M402.5,156.5 L390.1,160.1 L449.2,220.0 L409.4,223.0 L401.9,208.1 L402.5,156.5 Z"},
+  {id:"IL",canada:false,d:"M409.4,223.0 L449.2,220.0 L445.3,304.8 L444.0,289.5 L446.3,249.4 L409.4,223.0 Z"},
+  {id:"IN",canada:false,d:"M474.8,228.0 L444.7,231.1 L446.3,249.4 L448.9,278.4 L482.0,288.8 L474.8,228.0 Z"},
+  {id:"MI",canada:false,d:"M475.7,163.5 L462.1,185.0 L459.8,214.3 L489.5,227.7 L497.7,206.5 L490.3,192.2 L475.7,163.5 Z"},
+  {id:"OH",canada:false,d:"M474.8,228.0 L522.6,221.2 L513.6,275.3 L480.7,278.1 L474.8,228.0 Z"},
+  {id:"KY",canada:false,d:"M480.4,275.1 L512.9,270.7 L497.3,305.4 L445.9,312.4 L427.8,313.8 L433.3,305.7 L445.3,304.8 L444.0,289.5 L448.9,278.4 L480.4,275.1 Z"},
+  {id:"TN",canada:false,d:"M497.3,305.4 L366.3,316.4 L418.2,314.4 L419.6,337.3 L484.6,331.6 L493.1,330.6 L497.3,305.4 Z"},
+  {id:"VA",canada:false,d:"M585.2,245.0 L590.3,290.9 L541.7,300.3 L549.5,275.6 L552.8,248.5 L585.2,245.0 Z"},
+  {id:"WV",canada:false,d:"M552.8,248.5 L534.5,293.7 L507.4,282.4 L525.5,239.3 L552.8,248.5 Z"},
+  {id:"PA",canada:false,d:"M521.3,213.7 L581.4,222.4 L589.0,241.1 L527.8,252.9 L524.6,233.3 L521.3,213.7 Z"},
+  {id:"NY",canada:false,d:"M574.5,161.4 L563.5,187.2 L529.0,212.4 L521.3,213.7 L593.4,204.0 L592.0,165.1 L574.5,161.4 Z"},
+  {id:"VT",canada:false,d:"M608.9,153.0 L595.4,156.5 L607.0,184.9 L614.7,175.1 L608.9,153.0 Z"},
+  {id:"NH",canada:false,d:"M607.0,184.9 L614.7,175.1 L624.1,180.5 L607.0,184.9 Z"},
+  {id:"ME",canada:false,d:"M654.2,136.7 L639.8,104.8 L614.1,112.4 L617.0,158.7 L658.4,146.6 L654.2,136.7 Z"},
+  {id:"MA",canada:false,d:"M598.1,190.3 L636.7,192.8 L629.0,202.8 L617.3,198.1 L598.1,190.3 Z"},
+  {id:"CT",canada:false,d:"M617.3,198.1 L620.0,208.4 L602.4,217.5 L598.8,202.7 L617.3,198.1 Z"},
+  {id:"NJ",canada:false,d:"M587.8,214.7 L600.4,233.7 L586.8,252.5 L590.7,232.8 L587.8,214.7 Z"},
+  {id:"MD",canada:false,d:"M589.0,241.1 L593.6,266.7 L542.3,269.1 L539.2,251.0 L552.8,248.5 L589.0,241.1 Z"},
+  {id:"AR",canada:false,d:"M366.3,316.4 L418.2,314.4 L412.6,368.3 L374.7,369.7 L366.3,316.4 Z"},
+  {id:"LA",canada:false,d:"M374.7,369.7 L412.6,368.3 L435.7,427.9 L378.6,430.5 L331.0,420.1 L374.7,369.7 Z"},
+  {id:"MS",canada:false,d:"M419.6,337.3 L412.6,368.3 L435.7,427.9 L447.5,408.8 L448.5,342.9 L419.6,337.3 Z"},
+  {id:"AL",canada:false,d:"M484.6,331.6 L447.8,335.3 L447.5,408.8 L460.5,407.7 L484.6,331.6 Z"},
+  {id:"GA",canada:false,d:"M484.6,331.6 L492.4,376.8 L539.2,395.0 L539.1,385.8 L510.1,336.1 L484.6,331.6 Z"},
+  {id:"FL",canada:false,d:"M539.2,395.0 L520.4,411.5 L527.8,425.8 L543.8,460.0 L567.9,471.4 L567.2,450.2 L436.9,408.0 L483.9,405.3 L539.2,395.0 Z"},
+  {id:"SC",canada:false,d:"M510.1,336.1 L539.1,385.8 L541.8,369.9 L557.1,317.8 L510.1,336.1 Z"},
+  {id:"NC",canada:false,d:"M497.3,305.4 L493.1,330.6 L593.9,313.6 L587.8,285.2 L497.3,305.4 Z"},
+  {id:"BC",canada:true,d:"M78.2,87.1 L149.5,105.2 L128.7,24.4 L46.2,50.2 L81.0,84.8 L78.2,87.1 Z"},
+  {id:"AB",canada:true,d:"M149.5,105.2 L208.9,115.9 L219.8,42.9 L128.7,24.4 L149.5,105.2 Z"},
+  {id:"SK",canada:true,d:"M208.9,115.9 L268.9,122.9 L280.0,50.0 L219.8,42.9 L208.9,115.9 Z"},
+  {id:"MB",canada:true,d:"M268.9,122.9 L338.1,112.9 L350.0,40.0 L280.0,50.0 L268.9,122.9 Z"},
+  {id:"ON",canada:true,d:"M338.1,112.9 L574.5,161.4 L563.5,187.2 L499.3,217.1 L471.8,157.9 L402.5,156.5 L338.1,112.9 Z"},
+  {id:"QC",canada:true,d:"M574.5,161.4 L654.2,136.7 L639.8,104.8 L616.0,60.0 L574.5,161.4 Z"},
+];
+
+const TRIP_COLORS=[
+  '#DDDBF1','#5ec98a','#7eb8f7','#f5a623','#e07070','#a78bfa',
+  '#2dd4bf','#fb923c','#f472b6','#34d399','#60a5fa','#fbbf24',
+  '#c084fc','#4ade80','#38bdf8','#f87171'
+];
+
+let activeTrip=null;
+
+function haversine(lat1,lon1,lat2,lon2){
+  const R=3958.8,r=Math.PI/180;
+  const a=Math.sin((lat2-lat1)*r/2)**2+Math.cos(lat1*r)*Math.cos(lat2*r)*Math.sin((lon2-lon1)*r/2)**2;
+  return Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+}
+
+function buildRoadTrips(schedule){
+  if(!schedule||!schedule.length)return[];
+  const trips=[];let cur=null;
+  for(const g of schedule){
+    if(g.is_home){if(cur&&cur.games.length)trips.push(cur);cur=null;}
+    else{if(!cur)cur={games:[]};cur.games.push(g);}
+  }
+  if(cur&&cur.games.length)trips.push(cur);
+  return trips.map((t,i)=>({...t,color:TRIP_COLORS[i%TRIP_COLORS.length],idx:i+1}));
+}
+
+function arcPath(x1,y1,x2,y2,bend=0.22){
+  const mx=(x1+x2)/2,my=(y1+y2)/2;
+  const dx=x2-x1,dy=y2-y1;
+  const cx=mx-dy*bend,cy=my+dx*bend;
+  return `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`;
+}
+
+let leafletMap=null, leafletLayers=[];
+
+function destroyLeafletMap(){
+  if(leafletMap){
+    leafletMap.remove();
+    leafletMap=null;
+    leafletLayers=[];
+  }
+}
+
+function buildTravel(){
+  const tr=DATA[curTeam].travel;
+  const team=DATA[curTeam];
+  const schedule=team.schedule||[];
+  const trips=buildRoadTrips(schedule);
+  const noSchedule=!schedule.length;
+
+  const statsHTML=`
+    <div class="travel-grid" style="margin-bottom:20px;">
+      ${[
+        ['Total travel miles',tr.total_travel_miles?Math.round(tr.total_travel_miles).toLocaleString():'—','mi'],
+        ['Avg per game',tr.avg_travel_per_game?Math.round(tr.avg_travel_per_game).toLocaleString():'—','mi'],
+        ['Back-to-backs',tr.back_to_backs??'—',''],
+        ['Avg days rest',tr.avg_days_rest?tr.avg_days_rest.toFixed(1):'—','days'],
+        ['Road trips',trips.length||'—',''],
+        ['Longest trip',tr.longest_road_trip??'—','games'],
+      ].map(([l,v,u])=>`<div class="tbox"><div class="tbl-l">${l}</div><div class="tbv">${v}<span class="tbu">${u}</span></div></div>`).join('')}
+    </div>`;
+
+  const mapHTML=`
+    <div class="chart-card" style="padding:0;overflow:hidden;">
+      <div style="padding:13px 18px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--stone);margin-bottom:2px;">Season road trips</div>
+          <div style="font-size:11px;color:var(--muted2);font-style:italic;">Each color is one road trip. Click legend buttons to isolate a trip. Zoom and pan freely.</div>
+        </div>
+        <button onclick="activeTrip=null;drawLeafletMap()" style="background:none;border:1px solid var(--border);color:var(--muted2);padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;">Show all</button>
+      </div>
+      ${noSchedule
+        ? `<div style="padding:40px;text-align:center;color:var(--muted2);font-style:italic;font-size:13px;">Re-run <code>python pipeline.py</code> to include schedule data for the map.</div>`
+        : `<div id="leafletMap" style="height:480px;width:100%;"></div>
+           <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+             <span style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted2);margin-right:4px;">Trips</span>
+             ${trips.map(t=>`<button id="tripBtn${t.idx}" onclick="activeTrip=activeTrip===${t.idx}?null:${t.idx};drawLeafletMap()"
+               style="display:flex;align-items:center;gap:5px;background:none;border:1px solid var(--border);border-radius:3px;padding:3px 8px;cursor:pointer;transition:all 0.15s;">
+               <span style="display:inline-block;width:10px;height:3px;background:${t.color};border-radius:2px;"></span>
+               <span style="font-size:10px;color:var(--stone);font-family:'JetBrains Mono',monospace;">Trip ${t.idx} · ${t.games.length}g</span>
+             </button>`).join('')}
+           </div>`
+      }
+    </div>`;
+
+  return statsHTML+`<div class="sl" style="margin-bottom:12px;">Road trip map</div>`+mapHTML;
+}
+
+function drawLeafletMap(){
+  const team=DATA[curTeam];
+  const schedule=team.schedule||[];
+  const trips=buildRoadTrips(schedule);
+  const home=ARENA_XY[curTeam];
+  if(!home||!document.getElementById('leafletMap'))return;
+
+  // Update legend button styles
+  trips.forEach(t=>{
+    const btn=document.getElementById(`tripBtn${t.idx}`);
+    if(btn){
+      const on=activeTrip===t.idx;
+      btn.style.background=on?'rgba(221,219,241,0.07)':'none';
+      btn.style.borderColor=on?'rgba(221,219,241,0.25)':'var(--border)';
+    }
+  });
+
+  // Init or reuse map
+  if(!leafletMap){
+    leafletMap=L.map('leafletMap',{
+      center:[40.5,-97],
+      zoom:4,
+      zoomControl:false,
+      attributionControl:true,
+      dragging:false,
+      touchZoom:false,
+      doubleClickZoom:false,
+      scrollWheelZoom:false,
+      boxZoom:false,
+      keyboard:false,
+    });
+
+    // Dark tile layer from CartoDB
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains:'abcd', maxZoom:19
+    }).addTo(leafletMap);
+  }
+
+  // Clear previous layers
+  leafletLayers.forEach(l=>leafletMap.removeLayer(l));
+  leafletLayers=[];
+
+  // Draw all unvisited arenas as dim dots
+  const visitedSet=new Set([curTeam]);
+  trips.forEach(t=>t.games.forEach(g=>{if(ARENA_XY[g.opponent])visitedSet.add(g.opponent);}));
+
+  Object.entries(ARENA_XY).filter(([a])=>!visitedSet.has(a)).forEach(([a,p])=>{
+    const c=L.circleMarker([p.lat,p.lon],{
+      radius:3, color:'rgba(255,255,255,0.15)', fillColor:'#222',
+      fillOpacity:0.6, weight:1
+    }).addTo(leafletMap);
+    leafletLayers.push(c);
+  });
+
+  // Draw trip arcs using Leaflet's geodesic-ish curves
+  trips.forEach(trip=>{
+    const on=activeTrip===null||activeTrip===trip.idx;
+    const opacity=on?0.85:0.06;
+    const weight=on?2.5:1;
+    let prev=curTeam;
+
+    trip.games.forEach((g,li)=>{
+      const opp=g.opponent;
+      const fa=ARENA_XY[prev], ta=ARENA_XY[opp];
+      if(!fa||!ta){prev=opp;return;}
+
+      const miles=haversine(fa.lat,fa.lon,ta.lat,ta.lon);
+
+      // Build curved arc via intermediate point offset perpendicular to midpoint
+      const midLat=(fa.lat+ta.lat)/2;
+      const midLon=(fa.lon+ta.lon)/2;
+      const dLat=ta.lat-fa.lat, dLon=ta.lon-fa.lon;
+      const bend=0.18;
+      const cLat=midLat - dLon*bend;
+      const cLon=midLon + dLat*bend;
+
+      // Approximate bezier with polyline segments
+      const pts=[];
+      for(let i=0;i<=20;i++){
+        const t=i/20;
+        const lat=(1-t)**2*fa.lat + 2*(1-t)*t*cLat + t**2*ta.lat;
+        const lon=(1-t)**2*fa.lon + 2*(1-t)*t*cLon + t**2*ta.lon;
+        pts.push([lat,lon]);
+      }
+
+      const line=L.polyline(pts,{
+        color:trip.color, weight, opacity,
+        smoothFactor:1, lineCap:'round'
+      }).addTo(leafletMap);
+
+      line.bindTooltip(
+        `<div style="font-family:'Inter',sans-serif;font-size:12px;color:#e8e8e8;background:#13151a;border:1px solid ${trip.color}44;border-radius:4px;padding:6px 10px;">
+          <span style="color:${trip.color};font-weight:600;">Trip ${trip.idx}, Leg ${li+1}</span><br>
+          ${fa.city} → ${ta.city}<br>
+          <span style="color:#888;">${miles.toLocaleString()} miles</span>
+        </div>`,
+        {sticky:true, opacity:1, className:'leaflet-custom-tip'}
+      );
+
+      line.on('click',()=>{
+        activeTrip=activeTrip===trip.idx?null:trip.idx;
+        drawLeafletMap();
+      });
+
+      leafletLayers.push(line);
+
+      // Destination dot
+      const dot=L.circleMarker([ta.lat,ta.lon],{
+        radius:on?4:2.5,
+        color:trip.color, fillColor:trip.color,
+        fillOpacity:on?0.9:0.1, weight:on?1.5:0.5
+      }).addTo(leafletMap);
+      leafletLayers.push(dot);
+      prev=opp;
+    });
+
+    // Dashed return arc
+    if(on){
+      const lastOpp=trip.games[trip.games.length-1]?.opponent;
+      const lastA=ARENA_XY[lastOpp];
+      if(lastA&&lastOpp!==curTeam){
+        const midLat=(lastA.lat+home.lat)/2;
+        const midLon=(lastA.lon+home.lon)/2;
+        const dLat=home.lat-lastA.lat, dLon=home.lon-lastA.lon;
+        const cLat=midLat+dLon*0.1, cLon=midLon-dLat*0.1;
+        const pts=[];
+        for(let i=0;i<=16;i++){
+          const t=i/16;
+          pts.push([(1-t)**2*lastA.lat+2*(1-t)*t*cLat+t**2*home.lat,
+                    (1-t)**2*lastA.lon+2*(1-t)*t*cLon+t**2*home.lon]);
+        }
+        const ret=L.polyline(pts,{color:trip.color,weight:1,opacity:0.2,dashArray:'5 5'}).addTo(leafletMap);
+        leafletLayers.push(ret);
+      }
+    }
+  });
+
+  // Visited arena markers
+  [...visitedSet].filter(a=>a!==curTeam).forEach(a=>{
+    const p=ARENA_XY[a];if(!p)return;
+    const m=L.circleMarker([p.lat,p.lon],{
+      radius:5, color:'rgba(221,219,241,0.5)', fillColor:'#1a1c23',
+      fillOpacity:0.9, weight:1.5
+    }).addTo(leafletMap);
+    m.bindTooltip(`<div style="font-family:'Inter',sans-serif;font-size:12px;background:#13151a;border:1px solid rgba(221,219,241,0.2);border-radius:4px;padding:5px 9px;color:#DDDBF1;">${a} — ${p.city}</div>`,
+      {sticky:false,opacity:1,className:'leaflet-custom-tip'});
+    leafletLayers.push(m);
+  });
+
+  // Home arena marker
+  const homeDot=L.circleMarker([home.lat,home.lon],{
+    radius:8, color:'#DDDBF1', fillColor:'#DDDBF1',
+    fillOpacity:0.95, weight:2
+  }).addTo(leafletMap);
+  homeDot.bindTooltip(`<div style="font-family:'Inter',sans-serif;font-size:12px;background:#13151a;border:1px solid rgba(221,219,241,0.4);border-radius:4px;padding:5px 9px;color:#DDDBF1;font-weight:600;">${curTeam} — ${home.city} (Home)</div>`,
+    {sticky:false,opacity:1,className:'leaflet-custom-tip'});
+  leafletLayers.push(homeDot);
+
+  // Pulse ring around home
+  const ring=L.circleMarker([home.lat,home.lon],{
+    radius:14, color:'rgba(221,219,241,0.25)', fillColor:'transparent', weight:1.5
+  }).addTo(leafletMap);
+  leafletLayers.push(ring);
+
+  leafletMap.invalidateSize();
+}
+
+const f=v=>v!==null&&v!==undefined?v.toFixed(2):'—';
+init();
+</script>
+</body>
+</html>
