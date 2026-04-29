@@ -1,6 +1,6 @@
 # NHL Road Fatigue Index
 
-A data pipeline and interactive dashboard for measuring how NHL players hold up deep in road trips — and what it means for team performance over a full season.
+A data pipeline and interactive dashboard for measuring how NHL players hold up deep in road trips and what it means for team performance over a full season.
 
 Built using the NHL's public API. No API keys, no paid data sources.
 
@@ -20,7 +20,7 @@ We apply this across all 32 NHL teams, every skater with sufficient data, and la
 
 ```
 ├── pipeline.py              # Data pipeline — pulls all 32 teams from the NHL API
-├── dashboard_v12.html       # Interactive league-wide dashboard
+├── index.html       # Interactive league-wide dashboard
 ├── requirements.txt         # Python dependencies
 ├── src/
 │   ├── nhl_client.py        # NHL API wrapper (schedules, rosters, game logs)
