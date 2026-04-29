@@ -1,4 +1,4 @@
-# NHL Road Fatigue Index
+# [NHL Road Fatigue Index](https://mikeharman89.github.io/nhl-road-fatigue/)
 
 A data pipeline and interactive dashboard for measuring how NHL players hold up deep in road trips and what it means for team performance over a full season.
 
